@@ -1,0 +1,12 @@
+transaction_id,timestamp,user_id,account_id,department,transaction_type,amount,description
+TXN001,2024-10-13 09:15:00,USER_0001,ACC_1234,Emergency,billing,15000.00,Patient billing for emergency care
+TXN002,2024-10-13 09:20:00,USER_0002,ACC_5678,Cardiology,insurance_claim,125000.00,Insurance claim #456789
+TXN003,2024-10-13 09:25:00,USER_0003,ACC_2345,Pharmacy,payment,2500.00,Payment received for invoice #10234
+TXN004,2024-10-13 09:30:00,USER_0004,ACC_6789,Surgery,billing,75000.00,Patient billing for surgical procedure
+TXN005,2024-10-13 09:35:00,USER_0005,ACC_3456,Laboratory,procurement,15000.00,Procurement of laboratory equipment
+TXN006,2024-10-13 09:40:00,USER_0001,ACC_7890,Emergency,refund,1500.00,Refund processed for account 1234
+TXN007,2024-10-13 09:45:00,USER_0006,ACC_4567,Administration,payroll,8500.00,Payroll payment for employee
+TXN008,2024-10-13 09:50:00,USER_0007,ACC_8901,Oncology,insurance_claim,180000.00,Insurance claim #567890
+TXN009,2024-10-13 09:55:00,USER_0008,ACC_5678,Radiology,billing,25000.00,Patient billing for radiology services
+TXN010,2024-10-13 10:00:00,USER_0009,ACC_6789,Finance,transfer,50000.00,Fund transfer between accounts
+

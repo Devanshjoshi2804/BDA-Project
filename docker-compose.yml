@@ -1,0 +1,232 @@
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    hostname: zookeeper
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - zookeeper-data:/var/lib/zookeeper/data
+      - zookeeper-logs:/var/lib/zookeeper/log
+    networks:
+      - kafka-network
+    healthcheck:
+      test: echo srvr | nc zookeeper 2181 || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    hostname: kafka
+    container_name: kafka
+    depends_on:
+      zookeeper:
+        condition: service_healthy
+    ports:
+      - "9092:9092"
+      - "9101:9101"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_METRIC_REPORTERS: io.confluent.metrics.reporter.ConfluentMetricsReporter
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_CONFLUENT_METRICS_REPORTER_BOOTSTRAP_SERVERS: kafka:29092
+      KAFKA_CONFLUENT_METRICS_REPORTER_TOPIC_REPLICAS: 1
+      KAFKA_CONFLUENT_METRICS_ENABLE: 'false'
+      KAFKA_CONFLUENT_SUPPORT_CUSTOMER_ID: 'anonymous'
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+      KAFKA_LOG_RETENTION_HOURS: 168
+      KAFKA_LOG_SEGMENT_BYTES: 1073741824
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    networks:
+      - kafka-network
+    healthcheck:
+      test: kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  postgres:
+    image: postgres:14
+    container_name: postgres
+    hostname: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: hospital_admin
+      POSTGRES_PASSWORD: hospital_pass123
+      POSTGRES_DB: hospital_risk_db
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - kafka-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hospital_admin -d hospital_risk_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  flink-jobmanager:
+    image: flink:1.17.0-scala_2.12
+    container_name: flink-jobmanager
+    hostname: flink-jobmanager
+    ports:
+      - "8081:8081"
+    command: jobmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        parallelism.default: 2
+        state.backend: filesystem
+        state.checkpoints.dir: file:///tmp/flink-checkpoints
+        state.savepoints.dir: file:///tmp/flink-savepoints
+        execution.checkpointing.interval: 60000
+    volumes:
+      - flink-checkpoints:/tmp/flink-checkpoints
+      - flink-savepoints:/tmp/flink-savepoints
+      - ./flink-jobs:/opt/flink-jobs
+    networks:
+      - kafka-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  flink-taskmanager:
+    image: flink:1.17.0-scala_2.12
+    hostname: flink-taskmanager
+    depends_on:
+      - flink-jobmanager
+    command: taskmanager
+    environment:
+      - |
+        FLINK_PROPERTIES=
+        jobmanager.rpc.address: flink-jobmanager
+        taskmanager.numberOfTaskSlots: 4
+        parallelism.default: 2
+    volumes:
+      - flink-checkpoints:/tmp/flink-checkpoints
+      - flink-savepoints:/tmp/flink-savepoints
+      - ./flink-jobs:/opt/flink-jobs
+    networks:
+      - kafka-network
+
+  kafka-init:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka-init
+    depends_on:
+      kafka:
+        condition: service_healthy
+    entrypoint: [ '/bin/sh', '-c' ]
+    command: |
+      "
+      echo 'Waiting for Kafka to be ready...'
+      sleep 10
+      
+      echo 'Creating Kafka topics...'
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 3 --replication-factor 1 --topic hospital-transactions
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 3 --replication-factor 1 --topic risk-scores
+      kafka-topics --create --if-not-exists --bootstrap-server kafka:29092 --partitions 3 --replication-factor 1 --topic risk-alerts
+      
+      echo 'Listing topics:'
+      kafka-topics --list --bootstrap-server kafka:29092
+      
+      echo 'Topics created successfully!'
+      "
+    networks:
+      - kafka-network
+
+  producer:
+    build:
+      context: ./producers
+      dockerfile: Dockerfile
+    container_name: producer
+    depends_on:
+      kafka:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      TRANSACTION_RATE: 10
+      ANOMALY_RATE: 0.15
+    volumes:
+      - ./producers:/app
+      - ./datasets:/datasets
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  risk-processor:
+    build:
+      context: ./consumers
+      dockerfile: Dockerfile
+    container_name: risk-processor
+    depends_on:
+      kafka:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      kafka-init:
+        condition: service_completed_successfully
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: hospital_risk_db
+      POSTGRES_USER: hospital_admin
+      POSTGRES_PASSWORD: hospital_pass123
+    volumes:
+      - ./consumers:/app
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: dashboard
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    ports:
+      - "8501:8501"
+    environment:
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: hospital_risk_db
+      POSTGRES_USER: hospital_admin
+      POSTGRES_PASSWORD: hospital_pass123
+    volumes:
+      - ./dashboard:/app
+    networks:
+      - kafka-network
+    restart: unless-stopped
+
+volumes:
+  zookeeper-data:
+  zookeeper-logs:
+  kafka-data:
+  postgres-data:
+  flink-checkpoints:
+  flink-savepoints:
+
+networks:
+  kafka-network:
+    driver: bridge
+

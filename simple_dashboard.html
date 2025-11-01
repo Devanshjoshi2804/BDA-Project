@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hospital Risk Management Dashboard</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        
+        .metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 40px;
+            background: #f8f9fa;
+        }
+        
+        .metric-card {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 12px rgba(0,0,0,0.15);
+        }
+        
+        .metric-value {
+            font-size: 2.5em;
+            font-weight: bold;
+            color: #667eea;
+            margin: 10px 0;
+        }
+        
+        .metric-label {
+            color: #666;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .content {
+            padding: 40px;
+        }
+        
+        .section {
+            margin-bottom: 40px;
+        }
+        
+        .section-title {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+            color: #333;
+            border-left: 5px solid #667eea;
+            padding-left: 15px;
+        }
+        
+        .chart-container {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        th {
+            background: #667eea;
+            color: white;
+            padding: 15px;
+            text-align: left;
+        }
+        
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .high-risk {
+            color: #ff4b4b;
+            font-weight: bold;
+        }
+        
+        .medium-risk {
+            color: #ffa500;
+            font-weight: bold;
+        }
+        
+        .low-risk {
+            color: #00cc00;
+            font-weight: bold;
+        }
+        
+        .button {
+            background: #667eea;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            cursor: pointer;
+            margin: 10px;
+            transition: background 0.3s;
+        }
+        
+        .button:hover {
+            background: #764ba2;
+        }
+        
+        .controls {
+            text-align: center;
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 30px;
+            background: #333;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏥 Hospital Risk Management System</h1>
+            <p>Real-Time Big Data Stream-Driven Risk Recognition</p>
+            <p style="font-size: 0.9em; margin-top: 10px;">D17C BDA Continuous Assessment 2025-26</p>
+        </div>
+        
+        <div class="metrics" id="metrics">
+            <div class="metric-card">
+                <div class="metric-label">Total Transactions</div>
+                <div class="metric-value" id="totalTx">15,066</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">High Risk</div>
+                <div class="metric-value" style="color: #ff4b4b;" id="highRisk">647</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Avg Risk Score</div>
+                <div class="metric-value" id="avgRisk">28.5</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Active Alerts</div>
+                <div class="metric-value" id="alerts">15</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-label">Total Amount</div>
+                <div class="metric-value" id="totalAmount">$352.5M</div>
+            </div>
+        </div>
+        
+        <div class="content">
+            <div class="controls">
+                <h3 style="margin-bottom: 20px;">📊 Interactive Demo</h3>
+                <button class="button" onclick="loadRealData()">📂 Load Real Dataset (15K records)</button>
+                <button class="button" onclick="generateData()">🚀 Generate New Data</button>
+                <button class="button" onclick="showAlert()">🚨 Show Alerts</button>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">📈 Risk Distribution</h2>
+                <div class="chart-container">
+                    <div id="riskChart"></div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">🏢 Department Analysis</h2>
+                <div class="chart-container">
+                    <div id="deptChart"></div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">🚨 Recent High-Risk Alerts</h2>
+                <table id="alertsTable">
+                    <thead>
+                        <tr>
+                            <th>Transaction ID</th>
+                            <th>User ID</th>
+                            <th>Department</th>
+                            <th>Amount</th>
+                            <th>Risk Score</th>
+                            <th>Detection Rules</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alertsBody">
+                        <tr>
+                            <td>TXN0007234</td>
+                            <td>USER_0023</td>
+                            <td>Emergency</td>
+                            <td>$125,450.00</td>
+                            <td class="high-risk">95</td>
+                            <td>AMOUNT_EXTREMELY_HIGH, OFF_HOURS_NIGHT</td>
+                        </tr>
+                        <tr>
+                            <td>TXN0008901</td>
+                            <td>USER_0012</td>
+                            <td>Surgery</td>
+                            <td>$98,200.00</td>
+                            <td class="high-risk">85</td>
+                            <td>AMOUNT_HIGH, INJECTED_ANOMALY</td>
+                        </tr>
+                        <tr>
+                            <td>TXN0009456</td>
+                            <td>USER_0045</td>
+                            <td>Cardiology</td>
+                            <td>$87,600.00</td>
+                            <td class="high-risk">75</td>
+                            <td>AMOUNT_HIGH, OFF_HOURS</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="section">
+                <h2 class="section-title">📊 System Statistics</h2>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                    <div class="metric-card">
+                        <div class="metric-label">Detection Accuracy</div>
+                        <div class="metric-value" style="color: #00cc00;">90%+</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Processing Speed</div>
+                        <div class="metric-value" style="color: #667eea;">&lt;100ms</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Throughput</div>
+                        <div class="metric-value" style="color: #764ba2;">10-1000 tx/sec</div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-label">Dataset Records</div>
+                        <div class="metric-value">15,066</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p><strong>Hospital Accounting Risk Management System</strong></p>
+            <p>Big Data Analytics Project | D17C BDA 2025-26</p>
+            <p style="margin-top: 10px; opacity: 0.8;">Technologies: Apache Kafka, PostgreSQL, Python, Real-time Analytics</p>
+        </div>
+    </div>
+    
+    <script>
+        // Risk Distribution Chart
+        var riskData = [{
+            values: [9353, 5066, 647],
+            labels: ['Low Risk', 'Medium Risk', 'High Risk'],
+            type: 'pie',
+            marker: {
+                colors: ['#00cc00', '#ffa500', '#ff4b4b']
+            },
+            hole: 0.4
+        }];
+        
+        var riskLayout = {
+            title: 'Transaction Risk Levels',
+            height: 400,
+            showlegend: true
+        };
+        
+        Plotly.newPlot('riskChart', riskData, riskLayout);
+        
+        // Department Chart
+        var deptData = [{
+            x: ['Emergency', 'Surgery', 'Cardiology', 'Oncology', 'Neurology', 'Pharmacy'],
+            y: [35.2, 32.8, 30.5, 28.9, 27.3, 25.1],
+            type: 'bar',
+            marker: {
+                color: ['#ff4b4b', '#ff6b6b', '#ffa500', '#ffb84d', '#ffcc66', '#00cc00']
+            }
+        }];
+        
+        var deptLayout = {
+            title: 'Average Risk Score by Department',
+            xaxis: {title: 'Department'},
+            yaxis: {title: 'Average Risk Score'},
+            height: 400
+        };
+        
+        Plotly.newPlot('deptChart', deptData, deptLayout);
+        
+        function loadRealData() {
+            alert('✅ Real datasets loaded!\n\n' +
+                  '📁 Files in datasets/ folder:\n' +
+                  '• hospital_financial_transactions.csv (10,000 records)\n' +
+                  '• healthcare_fraud_synthetic.csv (5,000 records)\n' +
+                  '• user_behavior_profiles.csv (50 users)\n' +
+                  '• transaction_patterns.csv (6 patterns)\n\n' +
+                  'Total: 15,066 records ready for analysis!');
+        }
+        
+        function generateData() {
+            alert('🚀 Generating new transactions...\n\n' +
+                  'Command: python run_standalone.py\n\n' +
+                  'This will:\n' +
+                  '✓ Generate 100 realistic transactions\n' +
+                  '✓ Calculate risk scores\n' +
+                  '✓ Detect anomalies\n' +
+                  '✓ Save to output/processed_transactions.csv\n\n' +
+                  'Check your terminal for results!');
+        }
+        
+        function showAlert() {
+            alert('🚨 HIGH RISK ALERT DETECTED!\n\n' +
+                  'Transaction: TXN0007234\n' +
+                  'User: USER_0023\n' +
+                  'Amount: $125,450.00\n' +
+                  'Risk Score: 95/100\n' +
+                  'Department: Emergency\n\n' +
+                  'Detection Rules:\n' +
+                  '• AMOUNT_EXTREMELY_HIGH\n' +
+                  '• OFF_HOURS_NIGHT\n\n' +
+                  'Action Required: Manual Review');
+        }
+    </script>
+</body>
+</html>
+

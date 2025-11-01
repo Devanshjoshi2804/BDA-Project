@@ -1,0 +1,77 @@
+{
+  "datasets": [
+    {
+      "name": "healthcare_fraud_synthetic.csv",
+      "description": "Synthetic healthcare fraud detection dataset",
+      "records": 5000,
+      "features": [
+        "transaction_id",
+        "provider_id",
+        "patient_id",
+        "claim_amount",
+        "procedure_code",
+        "diagnosis_code",
+        "department",
+        "potential_fraud"
+      ],
+      "use_case": "Training fraud detection models"
+    },
+    {
+      "name": "hospital_financial_transactions.csv",
+      "description": "Hospital financial transactions with risk scores",
+      "records": 10000,
+      "features": [
+        "transaction_id",
+        "timestamp",
+        "user_id",
+        "account_id",
+        "department",
+        "transaction_type",
+        "amount",
+        "risk_score"
+      ],
+      "use_case": "Historical transaction analysis and baseline establishment"
+    },
+    {
+      "name": "user_behavior_profiles.csv",
+      "description": "User behavior baselines and profiles",
+      "records": 50,
+      "features": [
+        "user_id",
+        "role",
+        "primary_department",
+        "avg_transactions_per_day",
+        "baseline_risk_score",
+        "typical_hours"
+      ],
+      "use_case": "Behavioral anomaly detection"
+    },
+    {
+      "name": "transaction_patterns.csv",
+      "description": "Known risky transaction patterns",
+      "records": 6,
+      "features": [
+        "pattern_id",
+        "pattern_name",
+        "description",
+        "risk_level",
+        "frequency_threshold",
+        "risk_score_increase"
+      ],
+      "use_case": "Pattern matching and rule-based detection"
+    },
+    {
+      "name": "sample_transactions.csv",
+      "description": "Sample transactions for testing",
+      "records": 10,
+      "features": [
+        "transaction_id",
+        "timestamp",
+        "user_id",
+        "amount",
+        "department"
+      ],
+      "use_case": "System testing and verification"
+    }
+  ]
+}
